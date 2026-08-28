@@ -1,6 +1,6 @@
 # secure-demo
 
-Prueba de concepto en Java 21 del protocolo de cifrado extremo a extremo descrito en [`../propuesta_cifrado_extremo_a_extremo_java21.md`](../propuesta_cifrado_extremo_a_extremo_java21.md).
+Prueba de concepto en Java 21 de un protocolo de cifrado extremo a extremo para agregación segura de respuestas entre microservicios: un intermediario hace fan-out y agrega respuestas cifradas sin poder leer su contenido.
 
 Simula, en un solo proceso, el flujo completo:
 
@@ -43,13 +43,13 @@ java -cp target/classes:$(find ~/.m2 -name 'bcprov-jdk18on-*.jar' -o -name 'jack
 [requester] decrypted from service-b: {"customerId":12567,"status":"ACTIVE","balance":15234.22}
 ...
 
-=== Prueba negativa 1: manipulacion de ciphertext (seccion 47) ===
+=== Prueba negativa 1: manipulacion de ciphertext ===
 [OK] descifrado rechazado como se esperaba: InvalidCipherTextException
 
-=== Prueba negativa 2: sustitucion de requestId via AAD (seccion 48) ===
+=== Prueba negativa 2: sustitucion de requestId via AAD ===
 [OK] respuesta no trasladable a otro requestId: InvalidCipherTextException
 
-=== Prueba negativa 3: intento de descifrado del aggregator (seccion 49) ===
+=== Prueba negativa 3: intento de descifrado del aggregator ===
 [OK] aggregator no puede descifrar: InvalidCipherTextException
 ```
 
@@ -59,7 +59,7 @@ java -cp target/classes:$(find ~/.m2 -name 'bcprov-jdk18on-*.jar' -o -name 'jack
 |---|---|
 | `CryptoUtils` | Generación y (de)codificación de claves X25519 (API lightweight de Bouncy Castle) |
 | `HpkeCodec` | Wrapper de `org.bouncycastle.crypto.hpke.HPKE` para la suite fija del protocolo |
-| `AadCodec` | Construye el AAD (`requestId\|src\|dst\|ts\|schema_version`, sección 8 del documento) |
+| `AadCodec` | Construye el AAD (`requestId\|src\|dst\|ts\|schema_version`) que liga cada respuesta a su petición |
 | `RequestContext` | Estado efímero del requester (incluida la clave privada) |
 | `EncryptedEnvelope` | Formato del envelope que cruza el aggregator |
 | `ResponderService` | Simula un servicio downstream que cifra su respuesta |
@@ -72,10 +72,10 @@ java -cp target/classes:$(find ~/.m2 -name 'bcprov-jdk18on-*.jar' -o -name 'jack
 
 ## Qué falta para producción
 
-Este PoC valida el mecanismo criptográfico central, pero **no es apto para producción tal cual**. Antes de llevarlo a un entorno real, ver la sección "Próximos pasos recomendados" del documento de diseño:
+Este PoC valida el mecanismo criptográfico central, pero **no es apto para producción tal cual**. Antes de llevarlo a un entorno real:
 
 - TLS 1.3 / mTLS en el transporte real (aquí todo corre en un solo proceso, sin red).
-- Firma (Ed25519) de la metadata de la petición para que el aggregator no pueda sustituir la clave pública del requester (sección 10).
-- Anti-replay real: rechazo de `request_id` duplicados, ventana de expiración, nonces (sección 9).
+- Firma (Ed25519) de la metadata de la petición, para que el aggregator no pueda sustituir la clave pública del requester.
+- Anti-replay real: rechazo de `request_id` duplicados, ventana de expiración, nonces.
 - Servicios como procesos/contenedores independientes comunicándose por HTTP/2, no llamadas en memoria.
-- Pruebas de carga (1k/5k/10k RPS) y medición de p95/p99, CPU y GC (secciones 24-38).
+- Pruebas de carga (1k/5k/10k RPS) y medición de p95/p99, CPU y GC.
