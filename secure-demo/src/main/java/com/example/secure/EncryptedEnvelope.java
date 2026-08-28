@@ -1,10 +1,10 @@
 package com.example.secure;
 
 /**
- * Formato de envelope que viaja a traves del aggregator (seccion 7.3 / 12
- * del documento). "ts" viaja en claro junto al ciphertext porque forma
- * parte del AAD: el requester lo necesita para reconstruir exactamente
- * los mismos bytes autenticados al descifrar.
+ * The envelope format that travels through the aggregator. "ts" travels
+ * in the clear alongside the ciphertext because it is part of the AAD:
+ * the requester needs it to reconstruct the exact same authenticated
+ * bytes when decrypting.
  */
 public record EncryptedEnvelope(
     String rid,

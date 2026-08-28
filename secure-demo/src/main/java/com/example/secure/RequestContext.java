@@ -5,9 +5,8 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import java.time.Instant;
 
 /**
- * Estado efimero que vive unicamente en el servicio requester
- * (seccion 7.1 / 16 del documento). La keyPair completa -incluida
- * la privada- nunca sale de este objeto.
+ * Ephemeral state that lives only in the requester service. The full
+ * key pair — including the private key — never leaves this object.
  */
 public record RequestContext(
     String requestId,

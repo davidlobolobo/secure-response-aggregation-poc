@@ -9,10 +9,12 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * PoC de extremo a extremo (secciones 39-50 del documento):
- * requester genera X25519, el aggregator hace fan-out sin conocer
- * la clave privada, cada responder cifra con HPKE real (Bouncy Castle),
- * el requester descifra, y se demuestran los tres casos negativos.
+ * End-to-end PoC: the requester generates an X25519 key pair, the
+ * aggregator fans requests out without ever knowing the private key,
+ * each responder encrypts with real HPKE (Bouncy Castle), the requester
+ * decrypts, and the three negative cases are demonstrated. Exits with a
+ * non-zero status if any negative test unexpectedly succeeds, so it can
+ * double as a CI smoke test.
  */
 public final class Demo {
 
@@ -20,7 +22,7 @@ public final class Demo {
     private static final String REQUESTER = "service-a";
 
     public static void main(String[] args) throws Exception {
-        System.out.println("=== Fase 1: peticion original ===");
+        System.out.println("=== Phase 1: original request ===");
         RequestContext ctx = newRequestContext();
 
         Map<String, ResponderService> responders = Map.of(
@@ -44,7 +46,7 @@ public final class Demo {
         );
 
         System.out.println();
-        System.out.println("=== Fase 2: requester descifra ===");
+        System.out.println("=== Phase 2: requester decrypts ===");
         for (EncryptedEnvelope e : envelopes) {
             byte[] aad = AadCodec.build(e.rid(), e.src(), ctx.requester(), e.ts());
             byte[] plaintext = HpkeCodec.open(e.enc(), ctx.keyPair(), INFO, aad, e.ct());
@@ -53,19 +55,19 @@ public final class Demo {
         }
 
         System.out.println();
-        System.out.println("=== Prueba negativa 1: manipulacion de ciphertext (seccion 47) ===");
+        System.out.println("=== Negative test 1: tampered ciphertext ===");
         negativeTamperedCiphertext(ctx, envelopes.get(0));
 
         System.out.println();
-        System.out.println("=== Prueba negativa 2: sustitucion de requestId via AAD (seccion 48) ===");
+        System.out.println("=== Negative test 2: request_id substitution via AAD ===");
         negativeWrongAad(ctx, envelopes.get(0));
 
         System.out.println();
-        System.out.println("=== Prueba negativa 3: intento de descifrado del aggregator (seccion 49) ===");
+        System.out.println("=== Negative test 3: aggregator attempting to decrypt ===");
         negativeWrongKey(envelopes.get(0));
 
         System.out.println();
-        System.out.println("=== El aggregator agrego 4 respuestas cifradas sin conocer su contenido ===");
+        System.out.println("=== The aggregator aggregated 4 encrypted responses without ever reading their content ===");
     }
 
     private static RequestContext newRequestContext() {
@@ -74,7 +76,7 @@ public final class Demo {
         Instant now = Instant.now();
 
         System.out.printf(
-            "[requester] requestId=%s -- publicKey generada, privateKey solo en memoria local%n",
+            "[requester] requestId=%s -- public key generated, private key kept in local memory only%n",
             requestId
         );
 
@@ -89,9 +91,11 @@ public final class Demo {
 
         try {
             HpkeCodec.open(original.enc(), ctx.keyPair(), INFO, aad, tampered);
-            System.out.println("[FALLO] el descifrado no debio tener exito");
+            throw new AssertionError("decrypting a tampered ciphertext should not have succeeded");
+        } catch (AssertionError ex) {
+            throw ex;
         } catch (Exception ex) {
-            System.out.printf("[OK] descifrado rechazado como se esperaba: %s%n", ex.getClass().getSimpleName());
+            System.out.printf("[OK] decryption rejected as expected: %s%n", ex.getClass().getSimpleName());
         }
     }
 
@@ -102,9 +106,11 @@ public final class Demo {
 
         try {
             HpkeCodec.open(original.enc(), ctx.keyPair(), INFO, forgedAad, original.ct());
-            System.out.println("[FALLO] el descifrado no debio tener exito");
+            throw new AssertionError("a response should not have been transferable to another requestId");
+        } catch (AssertionError ex) {
+            throw ex;
         } catch (Exception ex) {
-            System.out.printf("[OK] respuesta no trasladable a otro requestId: %s%n", ex.getClass().getSimpleName());
+            System.out.printf("[OK] response not transferable to another requestId: %s%n", ex.getClass().getSimpleName());
         }
     }
 
@@ -114,9 +120,11 @@ public final class Demo {
 
         try {
             HpkeCodec.open(original.enc(), attackerKeyPair, INFO, aad, original.ct());
-            System.out.println("[FALLO] el aggregator no debio poder descifrar");
+            throw new AssertionError("the aggregator should not have been able to decrypt with the wrong key");
+        } catch (AssertionError ex) {
+            throw ex;
         } catch (Exception ex) {
-            System.out.printf("[OK] aggregator no puede descifrar: %s%n", ex.getClass().getSimpleName());
+            System.out.printf("[OK] aggregator cannot decrypt: %s%n", ex.getClass().getSimpleName());
         }
     }
 }

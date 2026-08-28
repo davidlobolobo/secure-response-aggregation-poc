@@ -8,10 +8,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Simula el intermediario/aggregator (secciones 20-21 del documento):
- * hace fan-out en paralelo con Virtual Threads y agrega los envelopes
- * cifrados. Notese que esta clase JAMAS recibe un AsymmetricCipherKeyPair
- * ni ninguna clave privada -no hay forma estructural de que descifre.
+ * Simulates the intermediary/aggregator: fans requests out in parallel
+ * with Virtual Threads and collects the encrypted envelopes. Note that
+ * this class NEVER receives an AsymmetricCipherKeyPair or any private
+ * key — there is no structural way for it to decrypt anything.
  */
 public final class AggregatorService {
 
@@ -28,7 +28,7 @@ public final class AggregatorService {
             Map<String, Object> payloadsByService) throws Exception {
 
         System.out.printf(
-            "[aggregator] requestId=%s -- reenviando publicKey a %d responders (sin retener clave privada)%n",
+            "[aggregator] requestId=%s -- forwarding public key to %d responders (holding no private key)%n",
             requestId, responders.size()
         );
 
@@ -54,7 +54,7 @@ public final class AggregatorService {
 
         for (EncryptedEnvelope e : envelopes) {
             System.out.printf(
-                "[aggregator] requestId=%s src=%s ciphertext(hex, primeros 16 bytes)=%s ... -- NO puede descifrar%n",
+                "[aggregator] requestId=%s src=%s ciphertext(hex, first 16 bytes)=%s ... -- CANNOT decrypt%n",
                 e.rid(), e.src(), hexPrefix(e.ct(), 16)
             );
         }

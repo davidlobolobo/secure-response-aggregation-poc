@@ -3,7 +3,8 @@ package com.example.secure;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Construye el AAD descrito en la seccion 8 del documento:
+ * Builds the additional authenticated data (AAD) that binds a response
+ * to its request:
  * request_id | source_service | destination_service | timestamp | schema_version
  */
 public final class AadCodec {

@@ -7,9 +7,9 @@ import org.bouncycastle.crypto.hpke.HPKEContextWithEncapsulation;
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 
 /**
- * Suite fija: DHKEM(X25519, HKDF-SHA256) + HKDF-SHA256 + AES-256-GCM,
- * modo base (sin PSK ni autenticacion de sender a nivel HPKE; esa
- * identidad la aporta mTLS en el transporte, ver seccion 4 del documento).
+ * Fixed suite: DHKEM(X25519, HKDF-SHA256) + HKDF-SHA256 + AES-256-GCM,
+ * base mode (no PSK, no sender authentication at the HPKE layer — that
+ * identity is provided by mTLS at the transport layer instead).
  */
 public final class HpkeCodec {
 
@@ -35,9 +35,9 @@ public final class HpkeCodec {
         HPKEContextWithEncapsulation ctx =
             newSuite().setupBaseS(recipientPublicKey, info);
 
-        // OJO: la firma real de HPKEContext es seal(aad, data), no
-        // seal(data, aad) como sugieren algunos resumenes del javadoc.
-        // Verificado por bytecode (org.bouncycastle.crypto.hpke.AEAD.process).
+        // NOTE: HPKEContext's real signature is seal(aad, data), not
+        // seal(data, aad) as some javadoc summaries suggest. Verified
+        // against the actual bytecode (org.bouncycastle.crypto.hpke.AEAD.process).
         byte[] ciphertext = ctx.seal(aad, plaintext);
         byte[] enc = ctx.getEncapsulation();
 

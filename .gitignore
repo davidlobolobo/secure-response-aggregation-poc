@@ -15,5 +15,5 @@ lib/
 .DS_Store
 Thumbs.db
 
-# Documento de diseño interno - no se publica
+# Internal design document - not published
 /propuesta_cifrado_extremo_a_extremo_java21.md

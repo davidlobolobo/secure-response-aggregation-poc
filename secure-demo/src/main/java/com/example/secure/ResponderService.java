@@ -7,9 +7,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 /**
- * Simula un servicio downstream (B, C, D o E): recibe la clave publica
- * del requester y un payload de negocio, y devuelve el envelope cifrado
- * (seccion 7.3 del documento). Nunca ve ni necesita la clave privada.
+ * Simulates a downstream service (B, C, D or E): receives the requester's
+ * public key and a business payload, and returns the encrypted envelope.
+ * It never sees or needs the private key.
  */
 public final class ResponderService {
 
@@ -40,7 +40,7 @@ public final class ResponderService {
             HpkeCodec.seal(requesterPublicKey, INFO, aad, json);
 
         System.out.printf(
-            "[%s] JSON original: %s%n",
+            "[%s] original JSON: %s%n",
             serviceName,
             new String(json, StandardCharsets.UTF_8)
         );

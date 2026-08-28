@@ -1,81 +1,85 @@
 # secure-demo
 
-Prueba de concepto en Java 21 de un protocolo de cifrado extremo a extremo para agregación segura de respuestas entre microservicios: un intermediario hace fan-out y agrega respuestas cifradas sin poder leer su contenido.
+A Java 21 proof of concept for an end-to-end encryption protocol for secure response aggregation between microservices: an intermediary fans requests out and aggregates encrypted responses without ever being able to read their content. See [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for the full design.
 
-Simula, en un solo proceso, el flujo completo:
+It simulates, in a single process, the complete flow:
 
-1. `service-a` (requester) genera un par de claves X25519 efímero. La clave privada nunca sale de su memoria.
-2. Un `AggregatorService` recibe solo la clave pública y hace fan-out en paralelo (Virtual Threads) hacia cuatro `ResponderService` (`service-b`, `service-c`, `service-d`, `service-e`).
-3. Cada responder cifra su JSON con **HPKE real (RFC 9180)** usando esa clave pública — vía Bouncy Castle, suite `DHKEM(X25519, HKDF-SHA256) + HKDF-SHA256 + AES-256-GCM`.
-4. El aggregator agrega los cuatro envelopes cifrados **sin poder descifrarlos** (nunca recibe ni retiene una clave privada).
-5. `service-a` descifra las cuatro respuestas.
-6. Se ejecutan tres pruebas negativas: ciphertext manipulado, `requestId` sustituido (falla la verificación del AAD), e intento de descifrado con una clave equivocada (simulando al propio aggregator).
+1. `service-a` (the requester) generates an ephemeral X25519 key pair. The private key never leaves its memory.
+2. An `AggregatorService` receives only the public key and fans out in parallel (Virtual Threads) to four `ResponderService` instances (`service-b`, `service-c`, `service-d`, `service-e`).
+3. Each responder encrypts its JSON with **real HPKE (RFC 9180)** using that public key — via Bouncy Castle, suite `DHKEM(X25519, HKDF-SHA256) + HKDF-SHA256 + AES-256-GCM`.
+4. The aggregator collects the four encrypted envelopes **without being able to decrypt them** (it never receives or holds a private key).
+5. `service-a` decrypts all four responses.
+6. Three negative tests run: a tampered ciphertext, a substituted `request_id` (fails AAD verification), and a decryption attempt with the wrong key pair (simulating the aggregator itself trying to peek).
 
-## Requisitos
+## Requirements
 
 - Java 21
 - Maven 3.9+
 
-## Compilar y ejecutar
+## Build and run
 
 ```bash
 mvn compile exec:java
 ```
 
-o generar el jar y ejecutarlo manualmente:
+or build the classes and run manually:
 
 ```bash
 mvn package
 java -cp target/classes:$(find ~/.m2 -name 'bcprov-jdk18on-*.jar' -o -name 'jackson-*.jar' | tr '\n' ':') com.example.secure.Demo
 ```
 
-## Salida esperada
+## Expected output
 
 ```
-=== Fase 1: peticion original ===
-[requester] requestId=... -- publicKey generada, privateKey solo en memoria local
-[aggregator] requestId=... -- reenviando publicKey a 4 responders (sin retener clave privada)
-[service-b] JSON original: {"customerId":12567,"status":"ACTIVE","balance":15234.22}
+=== Phase 1: original request ===
+[requester] requestId=... -- public key generated, private key kept in local memory only
+[aggregator] requestId=... -- forwarding public key to 4 responders (holding no private key)
+[service-b] original JSON: {"customerId":12567,"status":"ACTIVE","balance":15234.22}
 ...
-[aggregator] requestId=... src=service-b ciphertext(hex, primeros 16 bytes)=... -- NO puede descifrar
+[aggregator] requestId=... src=service-b ciphertext(hex, first 16 bytes)=... -- CANNOT decrypt
 
-=== Fase 2: requester descifra ===
+=== Phase 2: requester decrypts ===
 [requester] decrypted from service-b: {"customerId":12567,"status":"ACTIVE","balance":15234.22}
 ...
 
-=== Prueba negativa 1: manipulacion de ciphertext ===
-[OK] descifrado rechazado como se esperaba: InvalidCipherTextException
+=== Negative test 1: tampered ciphertext ===
+[OK] decryption rejected as expected: InvalidCipherTextException
 
-=== Prueba negativa 2: sustitucion de requestId via AAD ===
-[OK] respuesta no trasladable a otro requestId: InvalidCipherTextException
+=== Negative test 2: request_id substitution via AAD ===
+[OK] response not transferable to another requestId: InvalidCipherTextException
 
-=== Prueba negativa 3: intento de descifrado del aggregator ===
-[OK] aggregator no puede descifrar: InvalidCipherTextException
+=== Negative test 3: aggregator attempting to decrypt ===
+[OK] aggregator cannot decrypt: InvalidCipherTextException
 ```
 
-## Estructura
+The process exits with a non-zero status if any negative test unexpectedly succeeds — `Demo` doubles as a smoke test wired into CI (see `.github/workflows/build.yml`).
 
-| Clase | Rol |
+## Structure
+
+| Class | Role |
 |---|---|
-| `CryptoUtils` | Generación y (de)codificación de claves X25519 (API lightweight de Bouncy Castle) |
-| `HpkeCodec` | Wrapper de `org.bouncycastle.crypto.hpke.HPKE` para la suite fija del protocolo |
-| `AadCodec` | Construye el AAD (`requestId\|src\|dst\|ts\|schema_version`) que liga cada respuesta a su petición |
-| `RequestContext` | Estado efímero del requester (incluida la clave privada) |
-| `EncryptedEnvelope` | Formato del envelope que cruza el aggregator |
-| `ResponderService` | Simula un servicio downstream que cifra su respuesta |
-| `AggregatorService` | Simula el intermediario: fan-out y agregación, sin acceso a ninguna clave privada |
-| `Demo` | Orquesta el flujo completo y las pruebas negativas |
+| `CryptoUtils` | X25519 key generation and (de)serialization (Bouncy Castle's lightweight API) |
+| `HpkeCodec` | Wrapper around `org.bouncycastle.crypto.hpke.HPKE` for the protocol's fixed suite |
+| `AadCodec` | Builds the AAD (`requestId\|src\|dst\|ts\|schema_version`) binding each response to its request |
+| `RequestContext` | The requester's ephemeral state, including the private key |
+| `EncryptedEnvelope` | The wire format that crosses the aggregator |
+| `ResponderService` | Simulates a downstream service encrypting its response |
+| `AggregatorService` | Simulates the intermediary: fan-out and aggregation, with no access to any private key |
+| `Demo` | Orchestrates the full flow and the negative tests |
 
-## Nota importante sobre la API de Bouncy Castle
+## Important note about the Bouncy Castle API
 
-`HPKEContext.seal` / `.open` reciben los argumentos como **`(aad, data)`**, no `(data, aad)` — es fácil equivocarse porque no coincide con el orden habitual de otras APIs AEAD de Java. Si el orden se invierte, el AAD termina cifrado como si fuera el plaintext y el descifrado falla con `InvalidCipherTextException` ("data too short" o "mac check failed" según el tamaño). Verificado contra el bytecode real de `bcprov-jdk18on` 1.79 y 1.85.2.
+`HPKEContext.seal` / `.open` take their arguments as **`(aad, data)`**, not `(data, aad)` — easy to get backwards since it doesn't match the usual order of other Java AEAD APIs. Getting it backwards makes the AAD get encrypted as if it were the plaintext, and decryption then fails with `InvalidCipherTextException` ("data too short" or "mac check failed" depending on size). Verified against the real bytecode of `bcprov-jdk18on` 1.79 and 1.85.2.
 
-## Qué falta para producción
+## What's missing for production
 
-Este PoC valida el mecanismo criptográfico central, pero **no es apto para producción tal cual**. Antes de llevarlo a un entorno real:
+This PoC validates the core cryptographic mechanism, but **is not production-ready as-is**. Before deploying it in a real environment:
 
-- TLS 1.3 / mTLS en el transporte real (aquí todo corre en un solo proceso, sin red).
-- Firma (Ed25519) de la metadata de la petición, para que el aggregator no pueda sustituir la clave pública del requester.
-- Anti-replay real: rechazo de `request_id` duplicados, ventana de expiración, nonces.
-- Servicios como procesos/contenedores independientes comunicándose por HTTP/2, no llamadas en memoria.
-- Pruebas de carga (1k/5k/10k RPS) y medición de p95/p99, CPU y GC.
+- Real TLS 1.3 / mTLS on the wire (everything here runs in a single process, with no network).
+- Sign the request metadata (Ed25519) so the aggregator cannot substitute the requester's public key.
+- Real anti-replay: reject duplicate `request_id`s, enforce an expiration window, track nonces.
+- Services as independent processes/containers communicating over HTTP/2, not in-memory calls.
+- Load testing (1k/5k/10k RPS) with p95/p99 latency, CPU, and GC measured.
+
+See the full checklist in [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md#12-production-checklist).
