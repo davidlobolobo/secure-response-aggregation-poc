@@ -127,35 +127,18 @@ AES does the actual content encryption because it is dramatically more efficient
 
 ## 5. Request/response flow
 
-```text
-┌───────────────┐
-│  Requester    │  generates an ephemeral X25519 key pair
-└───────┬───────┘
-        │ privateKey  [stays local, never leaves this service]
-        │ publicKey   [travels with the request, ideally signed]
-        ▼
-┌──────────────────────────────┐
-│         Aggregator           │  sees: request_id, publicKey
-│   never holds a private key  │  sees on the way back: ciphertext only
-└─────────────┬─────────────────┘
-              │ fan-out
-     ┌────────┼────────┬────────┐
-     ▼        ▼        ▼        ▼
-    Svc B    Svc C    Svc D    Svc E
-     │        │        │        │
-     │  each produces its own JSON, then HPKE-encrypts it
-     │  for the requester's public key
-     ▼        ▼        ▼        ▼
- CipherB  CipherC  CipherD  CipherE
-     └────────┴────┬───┴────────┘
-                    ▼
-              Aggregator
-        assembles ciphertexts, still cannot read them
-                    │
-                    ▼
-              Requester
-      decrypts every response in parallel with its
-      own private key + HPKE
+```mermaid
+flowchart TD
+    A["Requester<br/>generates ephemeral X25519 keypair"]
+    AGG1["Aggregator<br/>never holds a private key"]
+    SVC["Downstream services B, C, D, E<br/>(fan-out, in parallel)"]
+    AGG2["Aggregator<br/>sees ciphertext only"]
+    A2["Requester<br/>decrypts with private key"]
+
+    A -->|"public key + request_id"| AGG1
+    AGG1 -->|"forwards public key"| SVC
+    SVC -->|"HPKE-encrypted responses"| AGG2
+    AGG2 -->|"aggregated ciphertexts"| A2
 ```
 
 ## 6. AAD — binding a response to its context
