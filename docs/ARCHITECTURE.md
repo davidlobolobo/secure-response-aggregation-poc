@@ -220,6 +220,7 @@ This PoC validates the core cryptographic mechanism. Before taking it to product
 - [ ] Real TLS 1.3 / mTLS on the wire (the PoC runs everything in a single process, with no network).
 - [ ] Sign request metadata with Ed25519 so the aggregator cannot substitute the requester's public key (section 8).
 - [ ] Real anti-replay: reject duplicate `request_id`s, enforce an expiration window, track nonces (section 7).
-- [ ] Services as independent processes/containers communicating over HTTP/2, not in-memory calls.
-- [ ] Load testing at your target RPS, with p95/p99 latency, CPU, and GC measured on real hardware — throughput and CPU cost scale with payload size and fan-out factor, so model those for your actual workload rather than assuming the numbers from a different deployment.
-- [ ] Decide whether Profile 2 (per-message Ed25519 signatures) is required for your compliance/audit needs, given its throughput cost.
+- [ ] Services as independent processes/containers exchanging real HPKE envelopes, not in-memory calls.
+- [ ] Decide whether Profile 2 (per-message Ed25519 signatures) is required for your compliance/audit needs, given its extra signing/verification cost.
+
+The aggregator's own operational behavior — fan-out strategy, connection handling, timeouts, capacity planning, scaling — is out of scope for this document; it belongs to whatever project implements the aggregator itself. This document only defines the cryptographic contract that aggregator must respect: it never receives or needs a private key.
