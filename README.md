@@ -1,5 +1,8 @@
 # End-to-End Encryption for Secure Response Aggregation
 
+[![build](https://github.com/davidlobolobo/secure-response-aggregation-poc/actions/workflows/build.yml/badge.svg)](https://github.com/davidlobolobo/secure-response-aggregation-poc/actions/workflows/build.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 A proof of concept (PoC) for an end-to-end encryption architecture that lets an intermediary/aggregator service route and collect responses from multiple microservices **without ever being able to read their content**.
 
 - **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — the design: trust model, cryptographic protocol (X25519 + HKDF-SHA256 + AES-256-GCM via HPKE / RFC 9180), AAD binding, anti-replay, and the production checklist.
@@ -23,7 +26,7 @@ The architecture is platform-agnostic. Java 21 is used here as the reference pla
 
 ## Status
 
-Proof of concept — not production-ready as-is. See the production checklist in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md#12-production-checklist) (real TLS 1.3/mTLS, signed request metadata, real anti-replay, load testing).
+Proof of concept — not production-ready as-is. See the production checklist in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md#12-production-checklist) (real TLS 1.3/mTLS, signed request metadata, real anti-replay).
 
 ## Contributing
 

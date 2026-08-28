@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a vulnerability
-    url: https://github.com/OWNER/REPO/security/advisories/new
+    url: https://github.com/davidlobolobo/secure-response-aggregation-poc/security/advisories/new
     about: Don't use a public issue for security vulnerabilities — follow SECURITY.md instead
