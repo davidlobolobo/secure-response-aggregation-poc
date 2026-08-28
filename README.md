@@ -8,6 +8,20 @@ A proof of concept (PoC) for an end-to-end encryption architecture that lets an 
 - **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — the design: trust model, cryptographic protocol (X25519 + HKDF-SHA256 + AES-256-GCM via HPKE / RFC 9180), AAD binding, anti-replay, and the production checklist.
 - **[secure-demo/](./secure-demo)** — a working Java 21 PoC that implements the protocol with real HPKE (via Bouncy Castle) and demonstrates the design's security properties, including negative tests.
 
+```mermaid
+flowchart TD
+    A["Requester<br/>generates ephemeral X25519 keypair"]
+    AGG1["Aggregator<br/>never holds a private key"]
+    SVC["Downstream services B, C, D, E<br/>(fan-out, in parallel)"]
+    AGG2["Aggregator<br/>sees ciphertext only"]
+    A2["Requester<br/>decrypts with private key"]
+
+    A -->|"public key + request_id"| AGG1
+    AGG1 -->|"forwards public key"| SVC
+    SVC -->|"HPKE-encrypted responses"| AGG2
+    AGG2 -->|"aggregated ciphertexts"| A2
+```
+
 ## Core idea
 
 > Each request generates a temporary public key (X25519). Downstream services encrypt their responses with that public key; only the service that originated the request holds the private key needed to decrypt them. The intermediary transports and aggregates ciphertext, but can never read it.
@@ -19,6 +33,13 @@ A proof of concept (PoC) for an end-to-end encryption architecture that lets an 
 - AES-256-GCM for authenticated encryption of the payload
 - HPKE (RFC 9180) as the standard envelope for the three primitives above
 - Ephemeral per-request keys — the private key never leaves the service that generated it
+
+## Threat model
+
+**Protects against:** the aggregator — even fully compromised — reading response content, response substitution across requests, and undetected ciphertext tampering.
+**Does not protect against:** compromise of an individual requester/responder service, traffic metadata leakage (who talked to whom, response size/timing), or denial of service.
+
+**→ Full threat model: [`docs/ARCHITECTURE.md#threat-model`](./docs/ARCHITECTURE.md#threat-model)**
 
 ## Scope
 

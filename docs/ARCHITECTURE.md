@@ -75,6 +75,24 @@ Downstream services encrypt with the public key.
 Only the requester decrypts, with the private key.
 ```
 
+## Threat model
+
+**In scope — what this design protects against:**
+
+- **The aggregator reading response content**, even if fully compromised. This is the core property, and the only one the current PoC actually exercises end-to-end (see [`secure-demo/`](../secure-demo)).
+- **Ciphertext tampering going undetected** — AES-GCM's authentication tag makes any bit flip in the ciphertext fail decryption.
+- **Response substitution across requests** — the AAD binds each ciphertext to its `request_id`, source, and destination, so a captured response can't be replayed as the answer to a different request.
+- **The aggregator substituting the requester's public key** to decrypt responses itself — prevented by signing the request metadata with Ed25519 (see "Authenticating the requester's public key" below). *Not yet implemented in the PoC.*
+- **Replay of old requests/responses** — via `request_id` uniqueness, an expiration window, and nonces (see "Anti-replay" below). *Not yet implemented in the PoC.*
+
+**Out of scope — what this design does not protect against:**
+
+- **Compromise of an individual requester or responder service.** If a service's process memory, keystore, or mTLS credentials are compromised, its own keys and any plaintext it holds are exposed — that's a property of the endpoint, not of this protocol.
+- **Metadata / traffic analysis.** The aggregator legitimately sees `request_id`, source/destination service identity, response size, timing, and HTTP status. An observer with access to the aggregator can infer which services responded and roughly how much data moved, even without reading the content.
+- **Confidentiality of the original request payload**, if it carries sensitive data of its own. This design only encrypts the *responses* end-to-end; the outbound request from the origin service is protected only by mTLS at each hop.
+- **Denial of service.** Nothing here rate-limits, load-sheds, or protects downstream services from a malicious or overloaded aggregator — that's the aggregator project's concern, not this document's.
+- **Key lifecycle management** — rotation, revocation, and distribution of the long-lived identity keys (Ed25519 signing keys, mTLS certificates) used to bootstrap trust between services.
+
 ## 4. Cryptographic protocol
 
 ### Transport
